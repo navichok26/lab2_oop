@@ -7,24 +7,28 @@
 #include <functional>
 #include <random>
 #include <Allocator.h>
+#include <cassert>
 
-// Аллокатор для тестов на стресс
-Allocator stressTestAllocator(1024, 0, NULL, "StressTestAllocator");  // Размер блока 1КБ, динамическое создание блоков
-
-// Структура для тестирования аллокатора
 struct TestBlock {
     int id;
-    char data[1020]; // Для размера блока 1024 байта с учетом id
+    char data[1020];
 };
 
-// Функция для тестирования аллокатора на устойчивость к захвату больших объемов памяти
+Allocator stressTestAllocator(1024, 10, NULL, "StressTestAllocator");
+
+static void out_of_memory()
+{
+    std::cout << "Hello world" << std::endl;
+    assert(0);
+}
+
 void runAllocatorStressTest() {
+    std::set_new_handler(out_of_memory);
     std::cout << "Запуск стресс-теста аллокатора...\n";
     
-    // Параметры теста
-    const int NUM_BLOCKS = 1000000;  // 1 миллион блоков
-    const int BLOCK_SIZE = sizeof(TestBlock);  // ~1KB
-    const int MB_TO_ALLOCATE = NUM_BLOCKS * BLOCK_SIZE / (1024*1024);  // Примерно в мегабайтах
+    const int NUM_BLOCKS = 1000000;
+    const int BLOCK_SIZE = sizeof(TestBlock);
+    const int MB_TO_ALLOCATE = NUM_BLOCKS * BLOCK_SIZE / (1024*1024);
     
     std::cout << "Попытка выделить ~" << MB_TO_ALLOCATE << " MB памяти через аллокатор\n";
     
@@ -44,7 +48,6 @@ void runAllocatorStressTest() {
             TestBlock* block = new(memory) TestBlock();
             block->id = i;
             
-            // Заполняем блок тестовыми данными
             for (int j = 0; j < 1020; j++) {
                 block->data[j] = static_cast<char>(i % 256);
             }
@@ -52,7 +55,6 @@ void runAllocatorStressTest() {
             blocks.push_back(block);
             successfulAllocations++;
             
-            // Показываем прогресс каждые 10000 блоков
             if (i % 10000 == 0) {
                 std::cout << "Выделено блоков: " << i << " (" 
                           << (i * BLOCK_SIZE / (1024*1024)) << " MB)\n";
@@ -70,7 +72,6 @@ void runAllocatorStressTest() {
     std::cout << "Объем выделенной памяти: " << (successfulAllocations * BLOCK_SIZE / (1024*1024)) << " MB\n";
     std::cout << "Время выделения: " << allocation_duration << " мс\n";
     
-    // Проверим случайные блоки на корректность данных
     const int NUM_CHECKS = std::min(100, successfulAllocations);
     int errors = 0;
     
@@ -80,7 +81,7 @@ void runAllocatorStressTest() {
         
         if (block->id != index) {
             std::cout << "Ошибка в ID блока #" << index << ": ожидалось " << index 
-                      << ", получено " << block->id << std::endl;
+                        << ", получено " << block->id << std::endl;
             errors++;
             continue;
         }
@@ -96,13 +97,11 @@ void runAllocatorStressTest() {
     
     std::cout << "Проверено блоков: " << NUM_CHECKS << ", найдено ошибок: " << errors << std::endl;
     
-    // Освобождаем все блоки
     std::cout << "Освобождение памяти...\n";
     
     auto deallocation_start_time = std::chrono::high_resolution_clock::now();
     
     for (TestBlock* block : blocks) {
-        // Вызываем деструктор явно и освобождаем память
         block->~TestBlock();
         stressTestAllocator.Deallocate(block);
     }
@@ -113,7 +112,6 @@ void runAllocatorStressTest() {
     
     std::cout << "Время освобождения: " << deallocation_duration << " мс\n";
     
-    // Выводим статистику аллокатора
     std::cout << "\n===== Статистика аллокатора после стресс-теста =====\n";
     std::cout << "Размер блока: " << stressTestAllocator.GetBlockSize() << " байт\n";
     std::cout << "Всего блоков: " << stressTestAllocator.GetBlockCount() << "\n";

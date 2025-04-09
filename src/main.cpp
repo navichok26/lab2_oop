@@ -5,15 +5,14 @@
 #include <cstring>
 #include <stack>
 #include <algorithm>
-#include <chrono> // Для измерения времени
+#include <chrono>
 #include "NodeBoolTree.h"
 #include "boolinterval.h"
 #include "boolequation.h"
 #include "BBV.h"
 #include <Allocator.h>
 
-// Создаем специализированные аллокаторы для разных типов классов
-// Каждый аллокатор оптимизирован под размер конкретного класса
+
 Allocator equationAllocator(sizeof(BoolEquation), 1000, NULL, "EquationAllocator");  // Для BoolEquation
 Allocator nodeAllocator(sizeof(NodeBoolTree), 2000, NULL, "NodeAllocator");          // Для NodeBoolTree
 Allocator intervalAllocator(sizeof(BoolInterval), 500, NULL, "IntervalAllocator");   // Для BoolInterval
@@ -42,9 +41,7 @@ std::string trim(const std::string& str) {
     return std::string(start, end + 1);
 }
 
-// Вспомогательные функции для работы с пользовательскими аллокаторами
 #ifdef USE_CUSTOM_ALLOCATOR
-// Специализированные функции для разных типов классов с соответствующими аллокаторами
 BoolEquation* allocateEquation(BoolInterval** cnf, BoolInterval* root, int cnfSize, int count, BBV mask, BranchingStrategy strategy) {
     void* memory = equationAllocator.Allocate(sizeof(BoolEquation));
     return new(memory) BoolEquation(cnf, root, cnfSize, count, mask, strategy);
@@ -75,21 +72,16 @@ BBV* allocateBBV(const char* str) {
     return new(memory) BBV(str);
 }
 
-// Функции для деаллокации разных типов объектов
 void deallocateNode(NodeBoolTree* node) {
     if (node) {
-        // Вызываем деструктор явно
         node->~NodeBoolTree();
-        // Освобождаем память через соответствующий аллокатор
         nodeAllocator.Deallocate(node);
     }
 }
 
 void deallocateEquation(BoolEquation* eq) {
     if (eq) {
-        // Вызываем деструктор явно
         eq->~BoolEquation();
-        // Освобождаем память через соответствующий аллокатор
         equationAllocator.Deallocate(eq);
     }
 }
@@ -132,7 +124,6 @@ int main(int argc, char *argv[])
             }
         }
     } else {
-        // Hardcode input если нет аргументов
         filepath = "../data/Sat_ex11_3.pla";
     }
     
@@ -144,10 +135,8 @@ int main(int argc, char *argv[])
     
     std::ifstream file(filepath);
 
-    // Для измерения времени
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    // Считываем весь файл
     if (file.is_open()) {
         std::string line;
         while (std::getline(file, line)) {
@@ -265,7 +254,6 @@ int main(int argc, char *argv[])
                             NodeBoolTree *Node0, *Node1;
                             
                             #ifdef USE_CUSTOM_ALLOCATOR
-                            // Используем специализированные аллокаторы
                             Equation0 = allocateEquationCopy(*currentEquation);
                             Equation1 = allocateEquationCopy(*currentEquation);
                             
@@ -275,7 +263,6 @@ int main(int argc, char *argv[])
                             Node0 = allocateNode(Equation0);
                             Node1 = allocateNode(Equation1);
                             #else
-                            // Используем стандартный new
                             Equation0 = new BoolEquation(*currentEquation);
                             Equation1 = new BoolEquation(*currentEquation);
                             
@@ -303,7 +290,6 @@ int main(int argc, char *argv[])
 
         } while (BoolTree.size() > 1 && !rootIsFinded);
 
-        // Измеряем время выполнения
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
 
@@ -317,7 +303,6 @@ int main(int argc, char *argv[])
 
         std::cout << "Время выполнения: " << duration << " мкс" << std::endl;
 
-        // Выводим статистику по аллокаторам
         #ifdef USE_CUSTOM_ALLOCATOR
         std::cout << "\n===== Статистика аллокаторов =====\n";
         std::cout << "Аллокатор для BoolEquation:\n";
@@ -335,33 +320,26 @@ int main(int argc, char *argv[])
         std::cout << "  Деаллокаций: " << nodeAllocator.GetDeallocations() << "\n";
         #endif
 
-        // Освобождаем память
         #ifdef USE_CUSTOM_ALLOCATOR
-        // При использовании пользовательских аллокаторов освобождаем память вручную
         while (!BoolTree.empty()) {
             NodeBoolTree* node = BoolTree.top();
             BoolTree.pop();
             
-            // Освобождаем память для уравнения
             if (node->eq) {
                 deallocateEquation(node->eq);
             }
             
-            // Освобождаем память для узла
             deallocateNode(node);
         }
         
-        // Освобождаем память для CNF
         for (int i = 0; i < cnfSize; i++) {
             deallocateInterval(CNF[i]);
         }
         
-        // Освобождаем память для root и BBV
         deallocateInterval(root);
         deallocateBBV(vec_ptr);
         deallocateBBV(dnc_ptr);
         #else
-        // При использовании стандартного аллокатора нужно явно освободить всю память
         while (!BoolTree.empty()) {
             NodeBoolTree* node = BoolTree.top();
             BoolTree.pop();
@@ -369,14 +347,12 @@ int main(int argc, char *argv[])
             delete node;
         }
         
-        // Освобождаем память для CNF и root
         for (int i = 0; i < cnfSize; i++) {
             delete CNF[i];
         }
         delete root;
         #endif
         
-        // В обоих случаях освобождаем массив указателей
         delete[] CNF;
 
     } else {
