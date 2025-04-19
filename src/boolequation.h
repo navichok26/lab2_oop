@@ -2,12 +2,8 @@
 #define BOOLEQUATION_H
 
 #include "boolinterval.h"
-
-// Перечисление для стратегий ветвления
-enum BranchingStrategy {
-    COLUMN_BRANCHING,    // Ветвление по столбцам (оригинальная стратегия)
-    ROW_BRANCHING,       // Ветвление по строкам
-};
+#include "BranchingStrategy.h"
+#include <memory>
 
 class BoolEquation
 {
@@ -17,9 +13,11 @@ public:
     int cnfSize; // Размер КНФ
     int count; //количество дизъюнкций
     BBV mask; //маска для столбцов
-    BranchingStrategy branchingStrategy; // Выбранная стратегия ветвления
+    std::shared_ptr<BranchingStrategy> branchingStrategy; // Стратегия ветвления
     
-    BoolEquation(BoolInterval **cnf, BoolInterval *root, int cnfSize, int count, BBV mask, BranchingStrategy strategy = COLUMN_BRANCHING);
+    // Обновленный конструктор принимает стратегию
+    BoolEquation(BoolInterval **cnf, BoolInterval *root, int cnfSize, int count, BBV mask, 
+                std::shared_ptr<BranchingStrategy> strategy);
     BoolEquation(BoolEquation &equation);
     int CheckRules();
     bool Rule1Row1(BoolInterval *interval);
@@ -28,10 +26,12 @@ public:
     bool Rule4Col0(BBV vector);
     bool Rule5Col1(BBV vector);
     void Simplify(int ixCol, char value);
-    int ChooseColForBranching(); // Выбор столбца для ветвления
-    int ChooseRowForBranching(); // Выбор строки для ветвления
-    int ChooseBranchingIndex(); // Обобщенный метод выбора с учетом стратегии
-    void SetBranchingStrategy(BranchingStrategy strategy); // Установка стратегии
+    
+    // Метод для выбора индекса ветвления с использованием текущей стратегии
+    int ChooseBranchingIndex();
+    
+    // Метод для изменения стратегии ветвления
+    void SetBranchingStrategy(std::shared_ptr<BranchingStrategy> strategy);
 };
 
 #endif // BOOLEQUATION_H
